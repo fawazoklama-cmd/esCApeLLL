@@ -1,0 +1,300 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global Safety Net: Default-Deny Catch-All
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Primitive Helpers ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // --- Entity Validation Helpers ---
+    function isValidUserProfile(data) {
+      return data.keys().hasAll([
+          'uid', 'username', 'avatarId', 'selectedCharacter',
+          'highScore', 'bestDistance', 'totalCoins', 'totalGames',
+          'wins', 'losses', 'totalDistance', 'language', 'theme',
+          'soundEnabled', 'musicEnabled', 'graphicsQuality',
+          'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'uid', 'username', 'avatarId', 'selectedCharacter',
+          'highScore', 'bestDistance', 'totalCoins', 'totalGames',
+          'wins', 'losses', 'totalDistance', 'language', 'theme',
+          'soundEnabled', 'musicEnabled', 'graphicsQuality',
+          'createdAt', 'updatedAt'
+        ])
+        && isValidId(data.uid)
+        && data.uid == request.auth.uid
+        && data.username is string && data.username.size() >= 2 && data.username.size() <= 24
+        && data.avatarId in ['camelia', 'elio', 'sky', 'horizon', 'neon', 'nova']
+        && data.selectedCharacter in ['camelia', 'elio']
+        && data.highScore is number && data.highScore >= 0 && data.highScore <= 10000000
+        && data.bestDistance is number && data.bestDistance >= 0 && data.bestDistance <= 500000
+        && data.totalCoins is number && data.totalCoins >= 0 && data.totalCoins <= 10000000
+        && data.totalGames is number && data.totalGames >= 0 && data.totalGames <= 1000000
+        && data.wins is number && data.wins >= 0 && data.wins <= 1000000
+        && data.losses is number && data.losses >= 0 && data.losses <= 1000000
+        && data.totalDistance is number && data.totalDistance >= 0 && data.totalDistance <= 50000000
+        && data.language in ['id', 'en']
+        && data.theme in ['day', 'night']
+        && data.soundEnabled is bool
+        && data.musicEnabled is bool
+        && data.graphicsQuality in ['low', 'medium', 'high']
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidUserPrivate(data) {
+      return data.keys().hasAll(['uid', 'email', 'updatedAt'])
+        && data.keys().hasOnly(['uid', 'email', 'updatedAt'])
+        && isValidId(data.uid)
+        && data.uid == request.auth.uid
+        && data.email is string && data.email.size() >= 3 && data.email.size() <= 160
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidMatchRecord(data) {
+      return data.keys().hasAll([
+          'uid', 'mode', 'character', 'score', 'distance',
+          'coins', 'result', 'createdAt'
+        ])
+        && data.keys().hasOnly([
+          'uid', 'mode', 'character', 'score', 'distance',
+          'coins', 'result', 'opponentName', 'createdAt'
+        ])
+        && isValidId(data.uid)
+        && data.uid == request.auth.uid
+        && data.mode in ['endless', 'duel']
+        && data.character in ['camelia', 'elio']
+        && data.score is number && data.score >= 0 && data.score <= 10000000
+        && data.distance is number && data.distance >= 0 && data.distance <= 500000
+        && data.coins is number && data.coins >= 0 && data.coins <= 1000000
+        && data.result in ['completed', 'win', 'loss', 'draw']
+        && (!('opponentName' in data) || (data.opponentName is string && data.opponentName.size() <= 32))
+        && data.createdAt is timestamp;
+    }
+
+    function isValidLeaderboardEntry(data) {
+      return data.keys().hasAll([
+          'uid', 'username', 'avatarId', 'character',
+          'score', 'distance', 'coins', 'dayKey', 'weekKey',
+          'validationSig', 'createdAt'
+        ])
+        && data.keys().hasOnly([
+          'uid', 'username', 'avatarId', 'character',
+          'score', 'distance', 'coins', 'dayKey', 'weekKey',
+          'validationSig', 'createdAt'
+        ])
+        && isValidId(data.uid)
+        && data.uid == request.auth.uid
+        && data.username is string && data.username.size() >= 2 && data.username.size() <= 24
+        && data.avatarId in ['camelia', 'elio', 'sky', 'horizon', 'neon', 'nova']
+        && data.character in ['camelia', 'elio']
+        && data.score is number && data.score >= 0 && data.score <= 10000000
+        && data.distance is number && data.distance >= 0 && data.distance <= 500000
+        && data.coins is number && data.coins >= 0 && data.coins <= 1000000
+        && data.dayKey is string && data.dayKey.size() == 10 && data.dayKey.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && data.weekKey is string && data.weekKey.size() >= 7 && data.weekKey.size() <= 10
+        && data.validationSig is string && data.validationSig.size() >= 8 && data.validationSig.size() <= 128
+        && data.createdAt is timestamp;
+    }
+
+    function isValidDuelRoom(data) {
+      return data.keys().hasAll([
+          'roomCode', 'isPublic', 'status', 'seed', 'targetDistance',
+          'hostUid', 'hostName', 'hostCharacter', 'hostReady',
+          'hostDistance', 'hostScore', 'hostAlive', 'hostConnected',
+          'guestUid', 'guestName', 'guestCharacter', 'guestReady',
+          'guestDistance', 'guestScore', 'guestAlive', 'guestConnected',
+          'countdownStartedAt', 'winnerUid', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'roomCode', 'isPublic', 'status', 'seed', 'targetDistance',
+          'hostUid', 'hostName', 'hostCharacter', 'hostReady',
+          'hostDistance', 'hostScore', 'hostAlive', 'hostConnected',
+          'guestUid', 'guestName', 'guestCharacter', 'guestReady',
+          'guestDistance', 'guestScore', 'guestAlive', 'guestConnected',
+          'countdownStartedAt', 'winnerUid', 'createdAt', 'updatedAt'
+        ])
+        && data.roomCode is string && data.roomCode.size() == 6 && data.roomCode.matches('^[A-Z0-9]{6}$')
+        && data.isPublic is bool
+        && data.status in ['waiting', 'countdown', 'racing', 'finished']
+        && data.seed is number && data.seed >= 0 && data.seed <= 999999999
+        && data.targetDistance is number && data.targetDistance >= 200 && data.targetDistance <= 50000
+        && isValidId(data.hostUid)
+        && data.hostName is string && data.hostName.size() >= 2 && data.hostName.size() <= 24
+        && data.hostCharacter in ['camelia', 'elio']
+        && data.hostReady is bool
+        && data.hostDistance is number && data.hostDistance >= 0 && data.hostDistance <= 500000
+        && data.hostScore is number && data.hostScore >= 0 && data.hostScore <= 10000000
+        && data.hostAlive is bool
+        && data.hostConnected is bool
+        && data.guestUid is string && data.guestUid.size() <= 128
+        && data.guestName is string && data.guestName.size() <= 24
+        && data.guestCharacter in ['camelia', 'elio']
+        && data.guestReady is bool
+        && data.guestDistance is number && data.guestDistance >= 0 && data.guestDistance <= 500000
+        && data.guestScore is number && data.guestScore >= 0 && data.guestScore <= 10000000
+        && data.guestAlive is bool
+        && data.guestConnected is bool
+        && data.countdownStartedAt is number && data.countdownStartedAt >= 0
+        && data.winnerUid is string && data.winnerUid.size() <= 128
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isHost(room) {
+      return isSignedIn() && room.hostUid == request.auth.uid;
+    }
+
+    function isGuest(room) {
+      return isSignedIn() && room.guestUid != '' && room.guestUid == request.auth.uid;
+    }
+
+    // --- Collection Rules ---
+    match /test/connection {
+      allow get: if true;
+    }
+
+    match /users/{userId} {
+      allow get: if isValidId(userId);
+      allow list: if false;
+      allow create: if isValidId(userId)
+        && isOwner(userId)
+        && isValidUserProfile(incoming())
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(userId)
+        && isOwner(userId)
+        && isValidUserProfile(incoming())
+        && incoming().uid == existing().uid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'username', 'avatarId', 'selectedCharacter',
+          'highScore', 'bestDistance', 'totalCoins', 'totalGames',
+          'wins', 'losses', 'totalDistance', 'language', 'theme',
+          'soundEnabled', 'musicEnabled', 'graphicsQuality', 'updatedAt'
+        ]);
+      allow delete: if false;
+
+      match /private/{docId} {
+        allow get: if isValidId(userId) && isValidId(docId) && isOwner(userId);
+        allow list: if false;
+        allow create: if isValidId(userId)
+          && isValidId(docId)
+          && isOwner(userId)
+          && isValidUserPrivate(incoming())
+          && incoming().updatedAt == request.time;
+        allow update: if isValidId(userId)
+          && isValidId(docId)
+          && isOwner(userId)
+          && isValidUserPrivate(incoming())
+          && incoming().uid == existing().uid
+          && incoming().updatedAt == request.time
+          && incoming().diff(existing()).affectedKeys().hasOnly(['email', 'updatedAt']);
+        allow delete: if false;
+      }
+
+      match /matches/{matchId} {
+        allow get: if isValidId(userId) && isValidId(matchId) && isOwner(userId);
+        allow list: if isOwner(userId);
+        allow create: if isValidId(userId)
+          && isValidId(matchId)
+          && isOwner(userId)
+          && isValidMatchRecord(incoming())
+          && incoming().createdAt == request.time;
+        allow update, delete: if false;
+      }
+    }
+
+    match /leaderboard/{entryId} {
+      allow get: if isValidId(entryId);
+      allow list: if resource.data.score >= 0;
+      allow create: if isValidId(entryId)
+        && isSignedIn()
+        && isValidLeaderboardEntry(incoming())
+        && incoming().createdAt == request.time;
+      allow update, delete: if false;
+    }
+
+    match /duelRooms/{roomId} {
+      allow get: if isValidId(roomId) && isSignedIn();
+      allow list: if isSignedIn() && (
+        resource.data.isPublic == true
+        || resource.data.hostUid == request.auth.uid
+        || resource.data.guestUid == request.auth.uid
+      );
+      allow create: if isValidId(roomId)
+        && isSignedIn()
+        && isValidDuelRoom(incoming())
+        && incoming().roomCode == roomId
+        && incoming().hostUid == request.auth.uid
+        && incoming().guestUid == ''
+        && incoming().status == 'waiting'
+        && incoming().winnerUid == ''
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+
+      allow update: if isValidId(roomId)
+        && isSignedIn()
+        && isValidDuelRoom(incoming())
+        && existing().status != 'finished'
+        && incoming().roomCode == existing().roomCode
+        && incoming().hostUid == existing().hostUid
+        && incoming().seed == existing().seed
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          (
+            existing().status == 'waiting'
+            && existing().guestUid == ''
+            && request.auth.uid != existing().hostUid
+            && incoming().guestUid == request.auth.uid
+            && incoming().diff(existing()).affectedKeys().hasOnly([
+              'guestUid', 'guestName', 'guestCharacter', 'guestReady', 'guestConnected', 'updatedAt'
+            ])
+          )
+          ||
+          (
+            isHost(existing())
+            && incoming().guestUid == existing().guestUid
+            && incoming().diff(existing()).affectedKeys().hasOnly([
+              'hostCharacter', 'hostReady', 'hostDistance', 'hostScore', 'hostAlive', 'hostConnected',
+              'status', 'countdownStartedAt', 'winnerUid', 'updatedAt'
+            ])
+          )
+          ||
+          (
+            isGuest(existing())
+            && incoming().guestUid == existing().guestUid
+            && incoming().diff(existing()).affectedKeys().hasOnly([
+              'guestCharacter', 'guestReady', 'guestDistance', 'guestScore', 'guestAlive', 'guestConnected',
+              'status', 'countdownStartedAt', 'winnerUid', 'updatedAt'
+            ])
+          )
+        );
+      allow delete: if false;
+    }
+  }
+}

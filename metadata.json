@@ -1,0 +1,6 @@
+{
+  "name": "esCApeLL",
+  "description": "RUN BEYOND THE END. A 3D Endless Runner Adventure & Online Player Duel game set in The Last Horizon.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,387 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Public player profile, stats, and game preferences stored under /users/{userId}.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "username": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 24
+        },
+        "avatarId": {
+          "type": "string",
+          "enum": ["camelia", "elio", "sky", "horizon", "neon", "nova"]
+        },
+        "selectedCharacter": {
+          "type": "string",
+          "enum": ["camelia", "elio"]
+        },
+        "highScore": {
+          "type": "number"
+        },
+        "bestDistance": {
+          "type": "number"
+        },
+        "totalCoins": {
+          "type": "number"
+        },
+        "totalGames": {
+          "type": "number"
+        },
+        "wins": {
+          "type": "number"
+        },
+        "losses": {
+          "type": "number"
+        },
+        "totalDistance": {
+          "type": "number"
+        },
+        "language": {
+          "type": "string",
+          "enum": ["id", "en"]
+        },
+        "theme": {
+          "type": "string",
+          "enum": ["day", "night"]
+        },
+        "soundEnabled": {
+          "type": "boolean"
+        },
+        "musicEnabled": {
+          "type": "boolean"
+        },
+        "graphicsQuality": {
+          "type": "string",
+          "enum": ["low", "medium", "high"]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "uid",
+        "username",
+        "avatarId",
+        "selectedCharacter",
+        "highScore",
+        "bestDistance",
+        "totalCoins",
+        "totalGames",
+        "wins",
+        "losses",
+        "totalDistance",
+        "language",
+        "theme",
+        "soundEnabled",
+        "musicEnabled",
+        "graphicsQuality",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "UserPrivate": {
+      "title": "UserPrivate",
+      "description": "Isolated PII document for user email under /users/{userId}/private/info.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "email": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 160
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["uid", "email", "updatedAt"]
+    },
+    "MatchRecord": {
+      "title": "MatchRecord",
+      "description": "Player match history entry under /users/{userId}/matches/{matchId}.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "mode": {
+          "type": "string",
+          "enum": ["endless", "duel"]
+        },
+        "character": {
+          "type": "string",
+          "enum": ["camelia", "elio"]
+        },
+        "score": {
+          "type": "number"
+        },
+        "distance": {
+          "type": "number"
+        },
+        "coins": {
+          "type": "number"
+        },
+        "result": {
+          "type": "string",
+          "enum": ["completed", "win", "loss", "draw"]
+        },
+        "opponentName": {
+          "type": "string",
+          "maxLength": 32
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "uid",
+        "mode",
+        "character",
+        "score",
+        "distance",
+        "coins",
+        "result",
+        "createdAt"
+      ]
+    },
+    "LeaderboardEntry": {
+      "title": "LeaderboardEntry",
+      "description": "Validated global, daily, and weekly leaderboard score entry under /leaderboard/{entryId}.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "username": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 24
+        },
+        "avatarId": {
+          "type": "string",
+          "enum": ["camelia", "elio", "sky", "horizon", "neon", "nova"]
+        },
+        "character": {
+          "type": "string",
+          "enum": ["camelia", "elio"]
+        },
+        "score": {
+          "type": "number"
+        },
+        "distance": {
+          "type": "number"
+        },
+        "coins": {
+          "type": "number"
+        },
+        "dayKey": {
+          "type": "string",
+          "minLength": 10,
+          "maxLength": 10,
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        },
+        "weekKey": {
+          "type": "string",
+          "minLength": 7,
+          "maxLength": 10
+        },
+        "validationSig": {
+          "type": "string",
+          "minLength": 8,
+          "maxLength": 128
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "uid",
+        "username",
+        "avatarId",
+        "character",
+        "score",
+        "distance",
+        "coins",
+        "dayKey",
+        "weekKey",
+        "validationSig",
+        "createdAt"
+      ]
+    },
+    "DuelRoom": {
+      "title": "DuelRoom",
+      "description": "Real-time 2-player online duel room under /duelRooms/{roomId}.",
+      "type": "object",
+      "properties": {
+        "roomCode": {
+          "type": "string",
+          "minLength": 6,
+          "maxLength": 6,
+          "pattern": "^[A-Z0-9]{6}$"
+        },
+        "isPublic": {
+          "type": "boolean"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["waiting", "countdown", "racing", "finished"]
+        },
+        "seed": {
+          "type": "number"
+        },
+        "targetDistance": {
+          "type": "number"
+        },
+        "hostUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "hostName": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 24
+        },
+        "hostCharacter": {
+          "type": "string",
+          "enum": ["camelia", "elio"]
+        },
+        "hostReady": {
+          "type": "boolean"
+        },
+        "hostDistance": {
+          "type": "number"
+        },
+        "hostScore": {
+          "type": "number"
+        },
+        "hostAlive": {
+          "type": "boolean"
+        },
+        "hostConnected": {
+          "type": "boolean"
+        },
+        "guestUid": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "guestName": {
+          "type": "string",
+          "maxLength": 24
+        },
+        "guestCharacter": {
+          "type": "string",
+          "enum": ["camelia", "elio"]
+        },
+        "guestReady": {
+          "type": "boolean"
+        },
+        "guestDistance": {
+          "type": "number"
+        },
+        "guestScore": {
+          "type": "number"
+        },
+        "guestAlive": {
+          "type": "boolean"
+        },
+        "guestConnected": {
+          "type": "boolean"
+        },
+        "countdownStartedAt": {
+          "type": "number"
+        },
+        "winnerUid": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "roomCode",
+        "isPublic",
+        "status",
+        "seed",
+        "targetDistance",
+        "hostUid",
+        "hostName",
+        "hostCharacter",
+        "hostReady",
+        "hostDistance",
+        "hostScore",
+        "hostAlive",
+        "hostConnected",
+        "guestUid",
+        "guestName",
+        "guestCharacter",
+        "guestReady",
+        "guestDistance",
+        "guestScore",
+        "guestAlive",
+        "guestConnected",
+        "countdownStartedAt",
+        "winnerUid",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Public player profile and game stats."
+    },
+    "/users/{userId}/private/{docId}": {
+      "schema": { "$ref": "#/entities/UserPrivate" },
+      "description": "Private PII document (email) restricted strictly to the profile owner."
+    },
+    "/users/{userId}/matches/{matchId}": {
+      "schema": { "$ref": "#/entities/MatchRecord" },
+      "description": "Match history records for a player."
+    },
+    "/leaderboard/{entryId}": {
+      "schema": { "$ref": "#/entities/LeaderboardEntry" },
+      "description": "Public leaderboard run records for global, daily, and weekly rankings."
+    },
+    "/duelRooms/{roomId}": {
+      "schema": { "$ref": "#/entities/DuelRoom" },
+      "description": "Online Duel rooms synchronized in real time between host and guest."
+    }
+  }
+}
