@@ -187,19 +187,22 @@ export async function validateRunOnServer(
 
 export async function recordCompletedRun(
   profile: UserProfile,
-  summary: RunSummary
+  summary: RunSummary,
+  options?: { deltaCoins?: number; deltaDistance?: number; skipGameCount?: boolean }
 ): Promise<{ updatedProfile: UserProfile; leaderboardSaved: boolean }> {
   const safeScore = Math.max(0, Math.round(summary.score));
   const safeDistance = Math.max(0, Math.round(summary.distance));
   const safeCoins = Math.max(0, Math.round(summary.coins));
+  const creditCoins = Math.max(0, Math.round(options?.deltaCoins ?? safeCoins));
+  const creditDistance = Math.max(0, Math.round(options?.deltaDistance ?? safeDistance));
 
   const nextProfile: UserProfile = {
     ...profile,
     highScore: Math.max(profile.highScore, safeScore),
     bestDistance: Math.max(profile.bestDistance, safeDistance),
-    totalCoins: profile.totalCoins + safeCoins,
-    totalGames: profile.totalGames + 1,
-    totalDistance: profile.totalDistance + safeDistance,
+    totalCoins: profile.totalCoins + creditCoins,
+    totalGames: profile.totalGames + (options?.skipGameCount ? 0 : 1),
+    totalDistance: profile.totalDistance + creditDistance,
     wins: profile.wins + (summary.duelResult === 'win' ? 1 : 0),
     losses: profile.losses + (summary.duelResult === 'loss' ? 1 : 0),
   };
@@ -289,33 +292,23 @@ export async function fetchLeaderboard(period: LeaderboardPeriod): Promise<Leade
   const path = 'leaderboard';
   const { dayKey, weekKey } = formatDateKeys();
   try {
-    let q;
-    if (period === 'daily') {
-      q = query(
-        collection(db, 'leaderboard'),
-        where('dayKey', '==', dayKey),
-        where('score', '>=', 0),
-        orderBy('score', 'desc'),
-        limit(25)
-      );
-    } else if (period === 'weekly') {
-      q = query(
-        collection(db, 'leaderboard'),
-        where('weekKey', '==', weekKey),
-        where('score', '>=', 0),
-        orderBy('score', 'desc'),
-        limit(25)
-      );
-    } else {
-      q = query(
-        collection(db, 'leaderboard'),
-        where('score', '>=', 0),
-        orderBy('score', 'desc'),
-        limit(25)
-      );
-    }
+    // Single-field indexed query avoids missing composite-index errors while satisfying score >= 0 rules
+    const fetchLimit = period === 'global' ? 25 : 100;
+    const q = query(
+      collection(db, 'leaderboard'),
+      where('score', '>=', 0),
+      orderBy('score', 'desc'),
+      limit(fetchLimit)
+    );
     const snap = await getDocs(q);
-    return snap.docs.map((d) => ({ id: d.id, ...(d.data() as LeaderboardEntry) }));
+    const allEntries = snap.docs.map((d) => ({ id: d.id, ...(d.data() as LeaderboardEntry) }));
+    if (period === 'daily') {
+      return allEntries.filter((e) => e.dayKey === dayKey).slice(0, 25);
+    }
+    if (period === 'weekly') {
+      return allEntries.filter((e) => e.weekKey === weekKey).slice(0, 25);
+    }
+    return allEntries.slice(0, 25);
   } catch (error) {
     handleFirestoreError(error, OperationType.LIST, path);
   }
@@ -436,13 +429,12 @@ export async function listOpenPublicRooms(myUid: string): Promise<DuelRoom[]> {
     const q = query(
       collection(db, 'duelRooms'),
       where('isPublic', '==', true),
-      where('status', '==', 'waiting'),
-      limit(12)
+      limit(25)
     );
     const snap = await getDocs(q);
     return snap.docs
       .map((d) => d.data() as DuelRoom)
-      .filter((r) => r.guestUid === '' && r.hostUid !== myUid);
+      .filter((r) => r.status === 'waiting' && r.guestUid === '' && r.hostUid !== myUid);
   } catch (error) {
     handleFirestoreError(error, OperationType.LIST, 'duelRooms');
   }

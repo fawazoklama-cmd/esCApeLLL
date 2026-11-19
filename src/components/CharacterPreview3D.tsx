@@ -44,7 +44,8 @@ export default function CharacterPreview3D({ character, animState, theme }: Char
 
     const scene = new THREE.Scene();
     const pmrem = new THREE.PMREMGenerator(renderer);
-    scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    const envTarget = pmrem.fromScene(new RoomEnvironment(), 0.04);
+    scene.environment = envTarget.texture;
     pmrem.dispose();
 
     const camera = new THREE.PerspectiveCamera(
@@ -124,7 +125,8 @@ export default function CharacterPreview3D({ character, animState, theme }: Char
 
     let frameId = 0;
     let disposed = false;
-    const clock = new THREE.Clock();
+    const startTimeMs = performance.now();
+    let lastFrameMs = startTimeMs;
 
     function afterDraw(cb: () => void) {
       const gl = renderer.getContext() as WebGL2RenderingContext;
@@ -145,8 +147,10 @@ export default function CharacterPreview3D({ character, animState, theme }: Char
 
     function tick() {
       if (disposed) return;
-      const dt = Math.min(clock.getDelta(), 0.05);
-      const elapsed = clock.elapsedTime;
+      const nowMs = performance.now();
+      const dt = Math.min(Math.max(0, (nowMs - lastFrameMs) / 1000), 0.05);
+      lastFrameMs = nowMs;
+      const elapsed = (nowMs - startTimeMs) / 1000;
       const st = stateRef.current;
 
       rigs.camelia.root.visible = st.character === 'camelia';
@@ -178,6 +182,7 @@ export default function CharacterPreview3D({ character, animState, theme }: Char
       window.removeEventListener('pointermove', onPointerMove);
       window.removeEventListener('pointerup', onPointerUp);
       window.removeEventListener('resize', onResize);
+      envTarget.dispose();
       renderer.dispose();
     };
   }, []);

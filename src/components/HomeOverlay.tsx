@@ -98,67 +98,16 @@ export default function HomeOverlay({
 
       {/* Left-Anchored Title Lockup & Menu Actions (Leaves center-right 3D survivor open) */}
       <div className="my-auto max-w-md pointer-events-auto">
-        <div className="rounded-3xl bg-white/88 dark:bg-[#111827]/86 border border-slate-200/80 dark:border-white/15 p-6 sm:p-7 shadow-xl text-slate-900 dark:text-white">
-          {/* Custom Inline SVG Title Emblem */}
-          <svg
-            viewBox="0 0 360 72"
-            className="w-64 sm:w-72 h-auto"
-            role="img"
-            aria-label="esCApeLL"
-          >
-            <defs>
-              <linearGradient id="escapellGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stopColor={theme === 'night' ? '#6EB4FF' : '#0284c7'} />
-                <stop offset="55%" stopColor={theme === 'night' ? '#A8D5FF' : '#2563eb'} />
-                <stop offset="100%" stopColor={theme === 'night' ? '#FFB6D9' : '#db2777'} />
-              </linearGradient>
-            </defs>
-            <path
-              d="M6 54 L26 14 L52 14 L34 54 Z"
-              fill="#6EB4FF"
+        <div className="rounded-3xl bg-white/90 dark:bg-[#111827]/88 border border-slate-200/80 dark:border-white/15 p-6 sm:p-7 shadow-xl text-slate-900 dark:text-white">
+          {/* Official esCApeLL Logo */}
+          <div className="flex justify-center">
+            <img
+              src="/assets/aistudio/file_00000000f6b48211b105b2ef73ff175f_663e38f0.png"
+              alt="esCApeLL — RUN BEYOND THE END."
+              className="w-full max-w-[300px] h-auto select-none drop-shadow-[0_4px_14px_rgba(17,24,39,0.22)]"
+              draggable={false}
             />
-            <path
-              d="M36 54 L54 14 L64 14 L46 54 Z"
-              fill="#FFB6D9"
-            />
-            <text
-              x="76"
-              y="50"
-              fill={theme === 'night' ? '#FFFFFF' : '#111827'}
-              fontFamily="Chakra Petch, sans-serif"
-              fontWeight="700"
-              fontSize="44"
-              letterSpacing="1.5"
-            >
-              es
-            </text>
-            <text
-              x="128"
-              y="50"
-              fill="url(#escapellGrad)"
-              fontFamily="Chakra Petch, sans-serif"
-              fontWeight="700"
-              fontSize="44"
-              letterSpacing="1.5"
-            >
-              CApe
-            </text>
-            <text
-              x="244"
-              y="50"
-              fill={theme === 'night' ? '#FFFFFF' : '#111827'}
-              fontFamily="Chakra Petch, sans-serif"
-              fontWeight="700"
-              fontSize="44"
-              letterSpacing="1.5"
-            >
-              LL
-            </text>
-          </svg>
-
-          <p className="mt-1.5 font-display text-xs sm:text-sm font-bold tracking-[0.22em] text-pink-600 dark:text-[#FFB6D9]">
-            {t.tagline}
-          </p>
+          </div>
 
           {/* Active Survivor & Best Run Summary */}
           <div className="mt-4 flex items-center justify-between gap-4 text-xs text-slate-600 dark:text-slate-300 border-y border-slate-200/80 dark:border-white/10 py-2.5">

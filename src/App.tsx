@@ -50,6 +50,7 @@ const STORAGE_CHAR = 'escapell_char';
 const STORAGE_QUALITY = 'escapell_quality';
 const STORAGE_SOUND = 'escapell_sound';
 const STORAGE_MUSIC = 'escapell_music';
+const STORAGE_GUEST_PROFILE = 'escapell_guest_profile';
 
 function readInitialLanguage(): Language {
   const saved = localStorage.getItem(STORAGE_LANG);
@@ -71,8 +72,43 @@ function readInitialQuality(): GraphicsQuality {
   return saved === 'low' || saved === 'high' ? saved : 'medium';
 }
 
+function loadSavedGuestProfile(): UserProfile {
+  const fallback = createLocalGuestProfile({
+    language: readInitialLanguage(),
+    theme: readInitialTheme(),
+    selectedCharacter: readInitialCharacter(),
+    graphicsQuality: readInitialQuality(),
+  });
+  try {
+    const raw = localStorage.getItem(STORAGE_GUEST_PROFILE);
+    if (!raw) return fallback;
+    const parsed = JSON.parse(raw) as Partial<UserProfile>;
+    return {
+      ...fallback,
+      username: typeof parsed.username === 'string' && parsed.username.length >= 2 ? parsed.username : fallback.username,
+      avatarId: parsed.avatarId ?? fallback.avatarId,
+      selectedCharacter: parsed.selectedCharacter ?? fallback.selectedCharacter,
+      highScore: Number(parsed.highScore) || 0,
+      bestDistance: Number(parsed.bestDistance) || 0,
+      totalCoins: Number(parsed.totalCoins) || 0,
+      totalGames: Number(parsed.totalGames) || 0,
+      wins: Number(parsed.wins) || 0,
+      losses: Number(parsed.losses) || 0,
+      totalDistance: Number(parsed.totalDistance) || 0,
+    };
+  } catch {
+    return fallback;
+  }
+}
+
 export default function App() {
   const canvasRef = useRef<GameCanvasHandle | null>(null);
+  const toastTimeoutRef = useRef<number | null>(null);
+  const runCreditedRef = useRef<{ coins: number; distance: number; countedGame: boolean }>({
+    coins: 0,
+    distance: 0,
+    countedGame: false,
+  });
 
   const [language, setLanguage] = useState<Language>(readInitialLanguage);
   const [theme, setTheme] = useState<ThemeMode>(readInitialTheme);
@@ -85,14 +121,7 @@ export default function App() {
     () => localStorage.getItem(STORAGE_MUSIC) !== 'false'
   );
 
-  const [profile, setProfile] = useState<UserProfile>(() =>
-    createLocalGuestProfile({
-      language: readInitialLanguage(),
-      theme: readInitialTheme(),
-      selectedCharacter: readInitialCharacter(),
-      graphicsQuality: readInitialQuality(),
-    })
-  );
+  const [profile, setProfile] = useState<UserProfile>(loadSavedGuestProfile);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   const [screen, setScreen] = useState<ScreenId>('home');
@@ -127,9 +156,26 @@ export default function App() {
   const t = TRANSLATIONS[language];
 
   const showToast = useCallback((msg: string) => {
+    if (toastTimeoutRef.current !== null) {
+      window.clearTimeout(toastTimeoutRef.current);
+    }
     setToastMsg(msg);
-    window.setTimeout(() => setToastMsg(null), 3200);
+    toastTimeoutRef.current = window.setTimeout(() => {
+      toastTimeoutRef.current = null;
+      setToastMsg(null);
+    }, 3200);
   }, []);
+
+  // Persist local guest profile changes
+  useEffect(() => {
+    if (profile.uid === 'guest_local') {
+      try {
+        localStorage.setItem(STORAGE_GUEST_PROFILE, JSON.stringify(profile));
+      } catch {
+        // Ignore storage quota errors
+      }
+    }
+  }, [profile]);
 
   // Sync HTML .dark class and body data-state
   useEffect(() => {
@@ -301,6 +347,7 @@ export default function App() {
       soundEngine.playButton();
       soundEngine.startMusic();
     }
+    runCreditedRef.current = { coins: 0, distance: 0, countedGame: false };
     setMode('endless');
     setCountdownValue(0);
     setRunSeed(Date.now());
@@ -386,7 +433,19 @@ export default function App() {
       setIsNewBest(summary.score > profile.highScore);
       setLastSummary(summary);
       try {
-        const { updatedProfile, leaderboardSaved } = await recordCompletedRun(profile, summary);
+        const deltaCoins = Math.max(0, summary.coins - runCreditedRef.current.coins);
+        const deltaDistance = Math.max(0, summary.distance - runCreditedRef.current.distance);
+        const skipGameCount = runCreditedRef.current.countedGame;
+        runCreditedRef.current = {
+          coins: Math.max(runCreditedRef.current.coins, summary.coins),
+          distance: Math.max(runCreditedRef.current.distance, summary.distance),
+          countedGame: true,
+        };
+        const { updatedProfile, leaderboardSaved } = await recordCompletedRun(profile, summary, {
+          deltaCoins,
+          deltaDistance,
+          skipGameCount,
+        });
         setProfile(updatedProfile);
         setScoreVerified(leaderboardSaved);
       } catch {
@@ -397,7 +456,7 @@ export default function App() {
   );
 
   const handleRevive = () => {
-    if (profile.totalCoins + (lastSummary?.coins ?? 0) < REVIVE_COIN_COST) return;
+    if (profile.totalCoins < REVIVE_COIN_COST) return;
     soundEngine.playButton();
     soundEngine.startMusic();
     const updatedCoins = Math.max(0, profile.totalCoins - REVIVE_COIN_COST);
@@ -414,6 +473,7 @@ export default function App() {
   const handleRestart = () => {
     soundEngine.playButton();
     soundEngine.startMusic();
+    runCreditedRef.current = { coins: 0, distance: 0, countedGame: false };
     const nextSeed = Date.now();
     setRunSeed(nextSeed);
     setLastSummary(null);
@@ -484,8 +544,12 @@ export default function App() {
         {/* Persistent 3D World Canvas (Lazy Loaded) */}
         <Suspense
           fallback={
-            <div className="fixed inset-0 bg-[#111827] text-white flex flex-col items-center justify-center gap-3">
-              <div className="font-display text-3xl font-bold text-[#6EB4FF]">esCApeLL</div>
+            <div className="fixed inset-0 bg-[#111827] text-white flex flex-col items-center justify-center gap-3 p-6">
+              <img
+                src="/assets/aistudio/file_00000000f6b48211b105b2ef73ff175f_663e38f0.png"
+                alt="esCApeLL"
+                className="w-64 max-w-[80vw] h-auto"
+              />
               <div className="text-xs tracking-widest uppercase text-[#FFB6D9]">
                 Loading {t.worldName}...
               </div>
@@ -627,14 +691,7 @@ export default function App() {
             onProfileUpdated={setProfile}
             onGuestModeSelected={() => {
               setIsAuthenticated(true);
-              setProfile(
-                createLocalGuestProfile({
-                  language,
-                  theme,
-                  selectedCharacter,
-                  graphicsQuality,
-                })
-              );
+              setProfile(loadSavedGuestProfile());
             }}
             onSignedOut={() => {
               setIsAuthenticated(false);

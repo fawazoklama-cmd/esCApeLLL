@@ -303,7 +303,8 @@ const GameCanvas3D = forwardRef<GameCanvasHandle, GameCanvasProps>(function Game
 
     // Mandatory studio environment map for PBR reflections
     const pmrem = new THREE.PMREMGenerator(renderer);
-    scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    const envTarget = pmrem.fromScene(new RoomEnvironment(), 0.04);
+    scene.environment = envTarget.texture;
     pmrem.dispose();
 
     const camera = new THREE.PerspectiveCamera(
@@ -576,7 +577,13 @@ const GameCanvas3D = forwardRef<GameCanvasHandle, GameCanvasProps>(function Game
       nextLandmarkSpawnDist = 22;
     }
 
+    let runEndTimeoutId: number | null = null;
+
     function resetSimulation(seedOverride?: number) {
+      if (runEndTimeoutId !== null) {
+        window.clearTimeout(runEndTimeoutId);
+        runEndTimeoutId = null;
+      }
       clearWorldEntities();
       const seed = seedOverride ?? propsRef.current.runSeed ?? 1337;
       lastSeed = seed;
@@ -883,7 +890,8 @@ const GameCanvas3D = forwardRef<GameCanvasHandle, GameCanvasProps>(function Game
     // Main Render Loop (with software-WebGL afterDraw pacing)
     let frameId = 0;
     let disposed = false;
-    const clock = new THREE.Clock();
+    const startTimeMs = performance.now();
+    let lastFrameMs = startTimeMs;
 
     function afterDraw(cb: () => void) {
       const gl = renderer.getContext() as WebGL2RenderingContext;
@@ -904,9 +912,11 @@ const GameCanvas3D = forwardRef<GameCanvasHandle, GameCanvasProps>(function Game
 
     function tick() {
       if (disposed) return;
-      const rawDt = clock.getDelta();
+      const nowMs = performance.now();
+      const rawDt = Math.max(0, (nowMs - lastFrameMs) / 1000);
+      lastFrameMs = nowMs;
       const dt = Math.min(rawDt, 0.05);
-      const elapsed = clock.elapsedTime;
+      const elapsed = (nowMs - startTimeMs) / 1000;
       const p = propsRef.current;
 
       applyQuality(p.graphicsQuality);
@@ -1175,8 +1185,11 @@ const GameCanvas3D = forwardRef<GameCanvasHandle, GameCanvasProps>(function Game
               };
               emitHudSnapshot(true);
               callbacksRef.current.onTelemetryTick?.(Math.round(distance), Math.round(score), false);
-              window.setTimeout(() => {
-                callbacksRef.current.onRunEnded(finalSummary);
+              runEndTimeoutId = window.setTimeout(() => {
+                runEndTimeoutId = null;
+                if (!disposed) {
+                  callbacksRef.current.onRunEnded(finalSummary);
+                }
               }, 380);
               break;
             }
@@ -1239,11 +1252,17 @@ const GameCanvas3D = forwardRef<GameCanvasHandle, GameCanvasProps>(function Game
       disposed = true;
       cancelAnimationFrame(frameId);
       clearTimeout(frameId);
+      if (runEndTimeoutId !== null) {
+        window.clearTimeout(runEndTimeoutId);
+        runEndTimeoutId = null;
+      }
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('resize', onResize);
       canvasEl.removeEventListener('touchstart', onTouchStart);
       canvasEl.removeEventListener('touchend', onTouchEnd);
       renderer.domElement.removeEventListener('webglcontextlost', handleContextLost);
+      envTarget.dispose();
+      roadTex.dispose();
       composer?.dispose();
       renderer.dispose();
     };

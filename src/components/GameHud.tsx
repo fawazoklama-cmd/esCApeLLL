@@ -75,7 +75,7 @@ export default function GameHud({
   const canRevive =
     mode === 'endless' &&
     hud.revivesUsed === 0 &&
-    totalCoinsBank + (lastSummary?.coins ?? 0) >= REVIVE_COIN_COST;
+    totalCoinsBank >= REVIVE_COIN_COST;
 
   const opponentPct = Math.min(100, (hud.opponentDistance / DUEL_TARGET_DISTANCE) * 100);
   const myPct = Math.min(100, (hud.distance / DUEL_TARGET_DISTANCE) * 100);

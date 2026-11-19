@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
   createUserWithEmailAndPassword,
-  signInAnonymously,
   signInWithEmailAndPassword,
   signInWithPopup,
   signOut,
@@ -106,17 +105,9 @@ export default function ProfileScreen({
     }
   };
 
-  const handleGuestMode = async () => {
-    setBusy(true);
+  const handleGuestMode = () => {
     setAuthError(null);
-    try {
-      await signInAnonymously(auth);
-    } catch {
-      // Fallback to local guest mode if anonymous auth is disabled in Firebase Console
-      onGuestModeSelected();
-    } finally {
-      setBusy(false);
-    }
+    onGuestModeSelected();
   };
 
   const handleLogout = async () => {
@@ -151,6 +142,8 @@ export default function ProfileScreen({
     window.setTimeout(() => setSavedNotice(false), 1800);
   };
 
+  const isCloudAuthenticated = isAuthenticated && profile.uid !== 'guest_local';
+
   return (
     <div className="fixed inset-0 z-20 overflow-y-auto bg-white/92 dark:bg-[#111827]/94 text-slate-900 dark:text-white p-4 sm:p-8">
       <div className="max-w-5xl mx-auto">
@@ -169,9 +162,9 @@ export default function ProfileScreen({
         </div>
 
         <div className="mt-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* Left Column: Auth or Profile Editor */}
+          {/* Left Column: Cloud Auth & Profile Editor */}
           <div className="lg:col-span-5 space-y-5">
-            {!isAuthenticated ? (
+            {!isCloudAuthenticated && (
               <div className="rounded-2xl bg-white dark:bg-[#1a1830] border border-slate-200 dark:border-white/15 p-6 shadow-sm">
                 <div className="flex items-center gap-2.5 mb-2">
                   <Shield className="w-5 h-5 text-[#6EB4FF]" />
@@ -270,17 +263,20 @@ export default function ProfileScreen({
                     </button>
                   </form>
 
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={() => void handleGuestMode()}
-                    className="mt-3 w-full py-2.5 px-4 rounded-xl border border-slate-200 dark:border-white/15 hover:bg-slate-50 dark:hover:bg-white/5 text-xs font-semibold cursor-pointer"
-                  >
-                    {t.profile.guestBtn}
-                  </button>
+                  {!(isAuthenticated && profile.uid === 'guest_local') && (
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={handleGuestMode}
+                      className="mt-3 w-full py-2.5 px-4 rounded-xl border border-slate-200 dark:border-white/15 hover:bg-slate-50 dark:hover:bg-white/5 text-xs font-semibold cursor-pointer"
+                    >
+                      {t.profile.guestBtn}
+                    </button>
+                  )}
                 </div>
               </div>
-            ) : (
+            )}
+            {isAuthenticated && (
               <form
                 onSubmit={(e) => void handleSaveProfile(e)}
                 className="rounded-2xl bg-white dark:bg-[#1a1830] border border-slate-200 dark:border-white/15 p-6 shadow-sm space-y-4"

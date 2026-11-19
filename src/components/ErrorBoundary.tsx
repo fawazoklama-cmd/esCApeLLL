@@ -16,7 +16,18 @@ export default class ErrorBoundary extends Component<Props, State> {
   }
 
   static getDerivedStateFromError(error: Error): State {
-    return { hasError: true, message: error.message || 'Unexpected application error.' };
+    let message = error.message || 'Unexpected application error.';
+    if (message.startsWith('{')) {
+      try {
+        const parsed = JSON.parse(message) as { error?: string; operationType?: string };
+        if (parsed.error) {
+          message = parsed.error;
+        }
+      } catch {
+        // Keep raw message if not valid JSON
+      }
+    }
+    return { hasError: true, message };
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
@@ -28,8 +39,12 @@ export default class ErrorBoundary extends Component<Props, State> {
       return (
         <div className="fixed inset-0 bg-[#111827] text-white flex items-center justify-center p-6">
           <div className="max-w-md w-full rounded-2xl bg-[#18182e] border border-white/15 p-6 text-center">
-            <h1 className="font-display text-2xl font-bold text-[#FFB6D9]">esCApeLL</h1>
-            <p className="mt-2 text-sm text-slate-300">{this.state.message}</p>
+            <img
+              src="/assets/aistudio/file_00000000f6b48211b105b2ef73ff175f_663e38f0.png"
+              alt="esCApeLL"
+              className="w-52 mx-auto h-auto"
+            />
+            <p className="mt-3 text-sm text-slate-300">{this.state.message}</p>
             <button
               type="button"
               onClick={() => window.location.reload()}
